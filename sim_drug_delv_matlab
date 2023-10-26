@@ -1,0 +1,193 @@
+clear
+close all 
+clc
+
+%%initialization
+lx=4*pi; %length
+ly=pi; %height
+ym=ly/2; %Ymax/2
+nx=51; 
+ny=21;
+dt=0.1; %gap between times
+t_end=3;
+D=0.1; 
+
+%%Second Initialzation
+dx=lx/(nx-1); %gap between points 
+dy=ly/(ny-1); %intrevals of growth in y
+nt=t_end/dt+1;
+
+x=0:dx:lx;
+y=0:dy:ly;
+t=0:dt:t_end;
+
+%%velocity matrix, advection-diffusion equation 
+u=zeros(nx,ny,nt);
+for i=1:nx
+    for j=1:ny
+        for k=1:nt
+            u(i,j,k)=3*(1-(x(i)-2*pi)^2/(2*pi^2)*cos(pi*t(k))*sin(x(i)))...
+                *(1-(y(j)-ym)^2/ym^2);
+            
+        end
+    end
+end
+
+%%initial conditions(Red area)
+c=zeros(nx,ny,nt);
+for i= 1:(lx/8)/dx  %spacing of 0.1                       
+    for j=1:ny
+              c(i,j,1)= 1-((y(j)-ym)^2)/(ym^2);
+    end
+end
+%%Boundary conditions
+for k=2:nt
+    for i=1:nx
+        c(i,ny,k)=0;
+        c(i,1,k)=0;
+        c(1,:,:)=c(nx,:,:);
+    end
+end
+
+%%coefficients in the discrete equation
+ap=1+(2*D*dt)/(dx^2)+(2*D*dt)/(dy^2);
+as=-(D*dt)/(dy^2);
+an=-(D*dt)/(dy^2);
+aw= -u*dt/(2*dx)-D*dt/dx^2;
+ae = u*dt/(2*dx)-D*dt/dx^2;
+
+%%%Defining A and b
+A=zeros(nx*(ny-2));
+b=zeros(nx*(ny-2),1);
+
+%%Try to solve the PDE
+for k=2:nt
+   
+    %T1 middle
+    for i=2:nx-1
+        for j=3:ny-2
+            pointer=(j-2)*nx+i;
+            b(pointer)=c(i,j,k-1);
+            A(pointer,pointer)=ap;
+            A(pointer,pointer+1)=ae(i,j,k);
+            A(pointer,pointer-1)=aw(i,j,k);
+            A(pointer,pointer+nx)=an;
+            A(pointer,pointer-nx)=as;
+        end
+    end
+    
+    %T2 far left west missing
+  for  i=1
+    for j=3:ny-2
+        pointer=(j-2)*nx+i;
+        b(pointer)=c(i,j,k-1);
+        A(pointer,pointer)=ap;
+        A(pointer,pointer+1)=ae(i,j,k);
+        A(pointer,pointer+nx-2)=aw(i,j,k);
+        A(pointer,pointer+nx)=an;
+        A(pointer,pointer-nx)=as;
+    end
+  end
+    
+    %T3 far right east missing 
+   for i=nx
+    for j=3:ny-2
+        pointer=(j-2)*nx+i;
+        b(pointer)=c(i,j,k-1);
+        A(pointer,pointer)=ap;
+        A(pointer,pointer-nx+2)=ae(i,j,k);
+        A(pointer,pointer-1)=aw(i,j,k);
+        A(pointer,pointer+nx)=an;
+        A(pointer,pointer-nx)=as;
+    end
+   end
+    
+    %T4 bottom south missing
+  for  j=2
+    for i=2:nx-1
+         pointer=(j-2)*nx+i;
+         b(pointer)=c(i,j,k-1);
+         A(pointer,pointer)=ap;
+         A(pointer,pointer+1)=ae(i,1,k);
+         A(pointer,pointer-1)=aw(i,1,k);
+         A(pointer,pointer+nx)=an;
+    end
+  end
+    
+    
+    %T5 top north missing
+   for j=ny-1
+    for i=2:nx-1
+     pointer=(j-2)*nx+i;
+     b(pointer)=c(i,j,k-1);
+     A(pointer,pointer)=ap;
+     A(pointer,pointer+1)=ae(i,j,k);
+     A(pointer,pointer-1)=aw(i,j,k);
+     A(pointer,pointer-nx)=as;
+    end
+   end
+    
+    %T6 bottom left corner west and south missing
+   for i=1
+    for j=2
+    pointer=(j-2)*nx+i;
+    b(pointer)=c(i,j,k-1);
+    A(pointer,pointer)=ap;
+    A(pointer,pointer+1)=ae(i,j,k);
+    A(pointer,pointer+nx-2)=aw(i,j,k);
+    A(pointer,pointer+nx)=an;
+    end 
+   end 
+    
+    %T7 bottom right corner east and south missing
+  for i=nx
+    for j=2
+    pointer=(j-2)*nx+i;
+    b(pointer)=c(i,j,k-1);
+    A(pointer,pointer)=ap;
+    A(pointer,pointer-nx+2)=ae(i,j,k);
+    A(pointer,pointer-1)=aw(i,j,k);
+    A(pointer,pointer+nx)=an;
+    end 
+   end
+   
+   
+   %T8 top left corner west and north missing
+  for  i=1
+    for j=ny-1
+    pointer=(j-2)*nx+i;
+    b(pointer)=c(i,j,k-1);
+    A(pointer,pointer)=ap;
+    A(pointer,pointer+1)=ae(i,j,k);
+    A(pointer,pointer+nx-2)=aw(i,j,k);
+    A(pointer,pointer-nx)=as;
+    end 
+  end
+  
+  %T9 top right corner east and north missing
+    for  i=nx
+    for j=ny-1
+    pointer=(j-2)*nx+i;
+    b(pointer)=c(i,j,k-1);
+    A(pointer,pointer)=ap;
+    A(pointer,pointer-nx+2)=ae(i,j,k);
+    A(pointer,pointer-1)=aw(i,j,k);
+    A(pointer,pointer-nx)=as;
+    end 
+   end 
+   
+    W=A\b;
+    c(:,2:ny-1,k)= reshape(W,nx,ny-2);
+ 
+end
+
+for q = 1:5:31  
+    figure
+    contourf(x,y,abs(c(:,:,q)'))
+    %num2str converts numerical values to string to display in the title
+    title(['Concentration at ' , num2str(floor(q/5)/2) , 's']) 
+    xlabel('Distance along x-axis')
+    ylabel('Distance along y-axis')
+    %Colour gradient for concentration
+    colorbar horizontal 
+end
