@@ -1,0 +1,124 @@
+import random
+from statistics import mean
+import matplotlib.pyplot as plt
+
+class Packet:
+
+    def __init__(self,size,arrival_time,_type):
+        self.size = size
+        self.arrival_time = arrival_time
+        self._type = _type
+        
+class InputQueue:
+
+    def __init__(self,input_size,mean_size,mean_arrival):
+        self.packets = []
+        self.mean_size = mean_size
+        self.mean_arrival = mean_arrival
+
+        for i in range(input_size):
+            size = int(random.expovariate(1/self.mean_size))
+            arrival = (random.expovariate(1/self.mean_arrival))
+            types = ['priority','economy']
+            weights=[0.2,0.8]
+            packet_type = random.choices(types,weights)[0]
+            self.packets.append(Packet(size,arrival,packet_type))          
+
+class OutputQueue:
+
+    def __init__(self,_type):
+        self._type = _type
+        self.queue = []
+
+    def append(self,val):
+        if isinstance(val,Packet):
+            self.queue.append(val)
+            
+        else:
+            print("Item not added, not of type Packet")
+            
+    def pop(self):
+        self.queue.pop(0)
+
+class Router:
+
+    def __init__(self,policy):
+        assert policy=='A' or policy=='B'
+        self.policy = policy
+        self.Priority = OutputQueue('priority')
+        self.Economy = OutputQueue('economy')
+        self.priority_wait_time = []
+        self.economy_wait_time = [] 
+        self.priority_packet_size = []
+        self.economy_packet_size = []
+        self.total_size = 0
+
+    def receiveInput(self,input_queue):
+        self.total_size+=len(input_queue.packets)
+        assert isinstance(input_queue,InputQueue)
+        
+        if self.policy=='A':
+            waiting_time = 0
+            
+            for packet in input_queue.packets:
+                waiting_time+=packet.arrival_time
+                waiting_time+=packet.size
+
+                if packet._type=='priority':
+                    self.priority_wait_time.append(waiting_time)
+                    self.Priority.append(packet)
+
+                else:
+                    self.economy_wait_time.append(waiting_time)
+                    self.Economy.append(packet)
+
+        else:
+            waiting_time = 0
+            l = len(input_queue.packets)
+            temp_queue = []
+
+            for i in range(l):
+                new_packet = input_queue.packets[0]
+
+                if new_packet._type=='priority':
+                    waiting_time+=new_packet.arrival_time
+                    waiting_time+=new_packet.size
+                    self.priority_wait_time.append(waiting_time)
+                    self.Priority.append(new_packet)
+
+                else:
+                    temp_queue.append(new_packet)
+                    waiting_time+=new_packet.arrival_time
+
+                input_queue.packets.pop(0)
+
+            for p in temp_queue:
+                    self.Economy.append(p)
+                    self.economy_wait_time.append(waiting_time+p.size)
+
+    def reportPerfomance(self):
+        print('Selected policy',self.policy)
+        print("Number of input packets received:",self.total_size)
+        print("Number of priority packets:", len(self.Priority.queue))
+        print("Number of economy packets:",len(self.Economy.queue))
+        print("A priority packet waits to be processed on average:",mean(self.priority_wait_time),"ms")
+        print("An economy packet waits to be processed on average:",mean(self.economy_wait_time),"ms")
+        wait = [mean(self.priority_wait_time),mean(self.economy_wait_time)]
+        plt.bar(['priority','economy'],(wait))
+        plt.ylabel('Time (ms)')
+        plt.title("Average wait time for packet in queue")
+        plt.show()
+        plt.bar(['priority','economy'],[len(self.Priority.queue),len(self.Economy.queue)])
+        plt.ylabel('Size')
+        plt.title("Average queue size")
+        plt.show()
+        
+input_queue = InputQueue(500,5,2)
+router = Router('A')
+router.receiveInput(input_queue)
+router.reportPerfomance()
+print("\n")
+input_queue = InputQueue(500,5,2)
+router = Router('B')
+router.receiveInput(input_queue)
+router.reportPerfomance()
