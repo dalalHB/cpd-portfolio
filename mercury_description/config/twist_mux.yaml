@@ -1,0 +1,11 @@
+twist_mux:
+  ros__parameters:
+    subscribers:
+      - topic: "/teleop_cmd_vel"
+        timeout: 0.5
+        priority: 100
+      - topic: "/nav_cmd_vel"
+        timeout: 0.5
+        priority: 1
+    publishers:
+      - topic: "/mercury/cmd_vel"
