@@ -202,8 +202,8 @@ with open('11458451.csv', 'w', newline='') as file:
     for chunk in chunks:
         writer.writerow(chunk)
 
-#Must be end of the file so close the file
+
 input_file.close()
 #print("Number of Frames: ", frame_counter)
 #print("Number of Corrupt Frames: ", corrupt_frame_counter)
-#print("Calenda Date of Messages: ", dates)
+#print("Calendar Date of Messages: ", dates)
